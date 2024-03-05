@@ -1,0 +1,20 @@
+INPUT:
+  SIZE: (224, 224)
+  TRANSFORMS: ["random_flip", "normalize"]
+
+DATASET:
+  NAME: "miniDomainNet"
+  SOURCE_DOMAINS: ["sketch"]
+  # TARGET_DOMAINS: ["clipart"]
+  # TARGET_DOMAINS: ["painting"]
+  TARGET_DOMAINS: ["real"]
+  # TARGET_DOMAINS: ["sketch"]
+# you can modify the code to explore four domains
+
+TRAINER:
+  DAMP:
+    STRONG_TRANSFORMS: ["random_flip", "randaugment", "normalize"]
+
+MODEL:
+  BACKBONE:
+    NAME: "RN50"
