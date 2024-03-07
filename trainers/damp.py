@@ -18,7 +18,6 @@ from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 from timm.models.layers import trunc_normal_
 from dassl.data import DataManager
 from dassl.data.transforms import build_transform
-from sklearn.manifold import TSNE
 
 _tokenizer = _Tokenizer()
 
@@ -616,7 +615,6 @@ class DAMP(TrainerXU):
         self.after_train()
 
     def run_epoch(self):
-        # self.tSNE(self.test_loader)
         self.threshold = self.cfg.TRAINER.DAMP.TAU #+ (0.8-self.cfg.TRAINER.DAMP.TAU) * self.epoch / (self.max_epoch - self.epoch) 
         self.set_model_mode("train")
         losses = MetricMeter()
@@ -834,7 +832,6 @@ class DAMP(TrainerXU):
             split = self.cfg.TEST.SPLIT
 
         data_loader = self.test_loader
-        # self.tSNE(self.test_loader)
         print("Do evaluation on test set")
 
         for batch_idx, batch in enumerate(data_loader):
@@ -854,52 +851,3 @@ class DAMP(TrainerXU):
         results_all = results["accuracy"]
 
         return results_all
-
-    @torch.no_grad()
-    def tSNE(self, test_loader):
-        self.set_model_mode("eval")
-        import matplotlib.pyplot as plt
-        # plt.rcParams['font.sans-serif'] = ['SimHei']
-        plt.rcParams['axes.unicode_minus'] = False
-        plt.axis('on')
-        plt.xticks([]) 
-        plt.yticks([])
-
-        fea_ori_list = None
-        class_mask_list = None
-        domain_mask_list = None
-        fea_update_list = None
-
-        for iter, batch in enumerate(test_loader):
-            input = batch["img"]
-            label = batch["label"]
-            domain = batch["domain"]
-
-            input = input.to(self.device)
-            label = label.to(self.device)
-
-            output, fea_ori, fea_update = self.model(input, fea=True)
-            fea_ori = fea_ori.cpu().data.numpy()
-            fea_update = fea_update.cpu().data.numpy()
-            domain_mask = domain.eq(0.0)
-            fea_ori_list = fea_ori if fea_ori_list is None else np.concatenate([fea_ori_list, fea_ori], axis=0)
-            fea_update_list = fea_update if fea_update_list is None else np.concatenate([fea_update_list, fea_update], axis=0)
-            domain_mask_list = domain_mask if domain_mask_list is None else np.concatenate([domain_mask_list, domain_mask], axis=0)
-
-        fea_ori_len = len(fea_ori_list)
-        fea_update_len = len(fea_update_list)
-
-        all_fea_list = np.concatenate([fea_ori_list, fea_update_list], axis=0)
-
-        tsne = TSNE(n_components=2, init='pca', random_state=501)
-        X_tsne = tsne.fit_transform(all_fea_list)
-        x_min, x_max = X_tsne.min(0), X_tsne.max(0)
-        X_norm = (X_tsne - x_min) / (x_max - x_min) 
-
-        plt.scatter(X_norm[:fea_ori_len, 0][~domain_mask_list], X_norm[:fea_ori_len, 1][~domain_mask_list], s=1, c='blue', alpha=0.1)
-        plt.scatter(X_norm[:fea_ori_len, 0][domain_mask_list], X_norm[:fea_ori_len, 1][domain_mask_list], s=1, c='red', alpha=0.1)
-        plt.scatter(X_norm[fea_ori_len:, 0][~domain_mask_list], X_norm[fea_ori_len:, 1][~domain_mask_list], s=1, c='blue')
-        plt.scatter(X_norm[fea_ori_len:, 0][domain_mask_list], X_norm[fea_ori_len:, 1][domain_mask_list], s=1, c='red')
-        # plt.scatter(X_norm[:fea_ori_len, 0], X_norm[:fea_ori_len, 1], s=25, c='orange', marker='*')
-
-        plt.savefig("Visualization_visual.pdf")
